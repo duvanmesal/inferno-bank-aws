@@ -1,0 +1,4 @@
+export const env = {
+  PAYMENT_TABLE_NAME: process.env.PAYMENT_TABLE_NAME,
+  CHECK_BALANCE_QUEUE_URL: process.env.CHECK_BALANCE_QUEUE_URL,
+};

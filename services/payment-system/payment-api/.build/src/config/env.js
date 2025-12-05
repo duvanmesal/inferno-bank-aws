@@ -1,0 +1,5 @@
+export const env = {
+  PAYMENT_TABLE_NAME: process.env.PAYMENT_TABLE_NAME,
+  START_PAYMENT_QUEUE_URL: process.env.START_PAYMENT_QUEUE_URL,
+  CORE_BANK_BASE_URL: process.env.CORE_BANK_BASE_URL,
+};
