@@ -1,16 +1,32 @@
 import { RedisRepository } from "../repositories/RedisRepository.js";
-import { CatalogGetService } from "../services/CatalogGetService.js";
-import { httpResponse } from "../utils/httpResponse.js";
 
 const redisRepo = new RedisRepository();
-const service = new CatalogGetService(redisRepo);
 
 export const handler = async () => {
   try {
-    const result = await service.process();
-    return httpResponse(200, result);
+    const items = await redisRepo.getCatalog();
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify(items),
+    };
   } catch (err) {
     console.error("❌ Error en catalog-get:", err);
-    return httpResponse(500, { message: "Internal server error" });
+
+    return {
+      statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({
+        message: "Internal server error",
+        error: err.message ?? String(err),
+      }),
+    };
   }
 };

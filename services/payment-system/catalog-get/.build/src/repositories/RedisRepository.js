@@ -1,38 +1,40 @@
-import redis from "redis";
+import { createClient } from "redis";
 import { env } from "../config/env.js";
 
 export class RedisRepository {
   constructor() {
-    this.client = redis.createClient({
+    this.client = createClient({
       socket: {
         host: env.REDIS_HOST,
-        port: env.REDIS_PORT
+        port: env.REDIS_PORT,
       },
-      password: env.REDIS_PASSWORD
+      password: env.REDIS_PASSWORD,
     });
 
-    this.client.connect();
+    this.client.on("error", (err) => {
+      console.error("❌ Redis client error:", err);
+    });
+
+    this.ready = this.client.connect();
   }
 
   async getCatalog() {
-    const ids = await this.client.hGetAll("catalog:index");
+    await this.ready;
 
-    let all = [];
+    const key = "catalog:services";
+    const hash = await this.client.hGetAll(key);
 
-    for (const id of Object.values(ids)) {
-      const data = await this.client.hGetAll(`catalog:${id}`);
-      all.push({
-        id: Number(id),
-        categoria: data.categoria,
-        proveedor: data.proveedor,
-        servicio: data.servicio,
-        plan: data.plan,
-        precio_mensual: Number(data.precio_mensual),
-        detalles: data.detalles,
-        estado: data.estado
-      });
-    }
+    // hash = { "1": "{...}", "2": "{...}" }
+    const items = Object.values(hash).map((json) => {
+      try {
+        return JSON.parse(json);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
 
-    return all;
+    console.log("📤 Catalogo obtenido desde Redis:", items.length, "items");
+
+    return items;
   }
 }
