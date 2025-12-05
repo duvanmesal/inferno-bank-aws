@@ -1,80 +1,54 @@
 variable "project_name" {
+  description = "Nombre base del proyecto (ej: inferno-bank)"
   type        = string
-  description = "Project name (should match parent project)"
   default     = "inferno-bank"
 }
 
 variable "environment" {
+  description = "Ambiente de despliegue (dev, qa, prod)"
   type        = string
-  description = "Environment (dev, stage, prod)"
-  validation {
-    condition     = contains(["dev", "stage", "prod"], var.environment)
-    error_message = "Environment must be dev, stage, or prod."
-  }
+  default     = "dev"
 }
 
 variable "aws_region" {
+  description = "Región AWS"
   type        = string
-  description = "AWS region for payment system resources"
   default     = "us-east-1"
 }
 
-variable "aws_profile" {
-  type        = string
-  description = "AWS profile to use"
-  default     = "inferno-bank"
-}
-
 variable "core_bank_base_url" {
+  description = "Base URL del API Gateway del core bancario (1er corte)"
   type        = string
-  description = "Base URL of the core bank API (e.g., https://api.inferno-bank.com)"
-  example     = "https://api.inferno-bank.com"
 }
 
+# Red
 variable "vpc_cidr" {
+  description = "CIDR block para la VPC del payment system"
   type        = string
-  description = "CIDR block for payment system VPC"
-  default     = "10.1.0.0/16"
+  default     = "10.40.0.0/16"
 }
 
 variable "public_subnet_cidr" {
+  description = "CIDR para la subnet pública"
   type        = string
-  description = "CIDR block for public subnet"
-  default     = "10.1.1.0/24"
+  default     = "10.40.1.0/24"
 }
 
 variable "private_subnet_cidr" {
+  description = "CIDR para la subnet privada"
   type        = string
-  description = "CIDR block for private subnet (Redis)"
-  default     = "10.1.2.0/24"
+  default     = "10.40.2.0/24"
 }
 
-variable "redis_node_type" {
+# Opcionales por si quieres sobreescribir
+variable "payment_table_name" {
+  description = "Nombre de la tabla DynamoDB de pagos (opcional)"
   type        = string
-  description = "ElastiCache Redis node type"
-  default     = "cache.t3.micro"
+  default     = ""
 }
 
-variable "sqs_visibility_timeout" {
-  type        = number
-  description = "SQS message visibility timeout in seconds"
-  default     = 300
-}
-
-variable "lambda_memory_size" {
-  type        = number
-  description = "Default memory allocation for Lambda functions (MB)"
-  default     = 512
-}
-
-variable "lambda_timeout" {
-  type        = number
-  description = "Default timeout for Lambda functions (seconds)"
-  default     = 60
-}
-
-variable "enable_dlq" {
-  type        = bool
-  description = "Enable Dead Letter Queues for SQS"
-  default     = true
+variable "catalog_bucket_name" {
+  description = "Nombre del bucket S3 para el catálogo (opcional)"
+  type        = string
+  default     = ""
 }
