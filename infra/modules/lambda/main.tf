@@ -17,7 +17,6 @@ resource "aws_lambda_function" "register_user" {
       JWT_SECRET_ARN            = var.jwt_secret_arn
       PASSWORD_SECRET_ARN       = var.password_secret_arn
       AVATARS_BUCKET            = var.avatars_bucket_name
-      #AWS_REGION                = data.aws_region.current.name
     }
   }
 
@@ -40,7 +39,6 @@ resource "aws_lambda_function" "login_user" {
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
       JWT_SECRET_ARN           = var.jwt_secret_arn
       PASSWORD_SECRET_ARN      = var.password_secret_arn
-      #AWS_REGION               = data.aws_region.current.name
     }
   }
 
@@ -62,7 +60,6 @@ resource "aws_lambda_function" "update_user" {
       USER_TABLE_NAME          = var.user_table_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
       JWT_SECRET_ARN           = var.jwt_secret_arn
-      #AWS_REGION               = data.aws_region.current.name
     }
   }
 
@@ -84,7 +81,6 @@ resource "aws_lambda_function" "upload_avatar_user" {
       USER_TABLE_NAME = var.user_table_name
       JWT_SECRET_ARN  = var.jwt_secret_arn
       AVATARS_BUCKET  = var.avatars_bucket_name
-      #AWS_REGION      = data.aws_region.current.name
     }
   }
 
@@ -105,7 +101,6 @@ resource "aws_lambda_function" "get_profile_user" {
     variables = {
       USER_TABLE_NAME = var.user_table_name
       JWT_SECRET_ARN  = var.jwt_secret_arn
-      #AWS_REGION      = data.aws_region.current.name
     }
   }
 
@@ -127,7 +122,6 @@ resource "aws_lambda_function" "card_approval_worker" {
     variables = {
       CARD_TABLE_NAME          = var.card_table_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
-      #AWS_REGION               = data.aws_region.current.name
     }
   }
 
@@ -154,7 +148,6 @@ resource "aws_lambda_function" "card_request_failed" {
   environment {
     variables = {
       CARD_ERROR_TABLE_NAME = var.card_error_table_name
-      #AWS_REGION            = data.aws_region.current.name
     }
   }
 
@@ -176,7 +169,6 @@ resource "aws_lambda_function" "card_activate" {
       CARD_TABLE_NAME          = var.card_table_name
       TRANSACTION_TABLE_NAME   = var.transaction_table_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
-      #AWS_REGION               = data.aws_region.current.name
     }
   }
 
@@ -198,7 +190,6 @@ resource "aws_lambda_function" "card_purchase" {
       CARD_TABLE_NAME          = var.card_table_name
       TRANSACTION_TABLE_NAME   = var.transaction_table_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
-      #AWS_REGION               = data.aws_region.current.name
     }
   }
 
@@ -220,7 +211,6 @@ resource "aws_lambda_function" "card_transaction_save" {
       CARD_TABLE_NAME          = var.card_table_name
       TRANSACTION_TABLE_NAME   = var.transaction_table_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
-      #AWS_REGION               = data.aws_region.current.name
     }
   }
 
@@ -242,7 +232,6 @@ resource "aws_lambda_function" "card_paid_credit_card" {
       CARD_TABLE_NAME          = var.card_table_name
       TRANSACTION_TABLE_NAME   = var.transaction_table_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
-      #AWS_REGION               = data.aws_region.current.name
     }
   }
 
@@ -265,7 +254,26 @@ resource "aws_lambda_function" "card_get_report" {
       TRANSACTION_TABLE_NAME   = var.transaction_table_name
       REPORTS_BUCKET           = var.reports_bucket_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
-      #AWS_REGION               = data.aws_region.current.name
+    }
+  }
+
+  tags = var.tags
+}
+
+# 🔥 NUEVA LAMBDA: GET /cards/{card_id}
+resource "aws_lambda_function" "card_get" {
+  function_name    = "card-get-lambda-${var.env}"
+  role             = var.card_service_role_arn
+  runtime          = "nodejs20.x"
+  handler          = "index.cardGetHandler"
+  filename         = "${path.module}/../../../services/card-service/dist/card-service.zip"
+  source_code_hash = fileexists("${path.module}/../../../services/card-service/dist/card-service.zip") ? filebase64sha256("${path.module}/../../../services/card-service/dist/card-service.zip") : null
+  timeout          = 30
+  memory_size      = 512
+
+  environment {
+    variables = {
+      CARD_TABLE_NAME = var.card_table_name
     }
   }
 
@@ -289,7 +297,6 @@ resource "aws_lambda_function" "send_notifications" {
       NOTIFICATION_TABLE_NAME = var.notification_table_name
       TEMPLATES_BUCKET        = var.templates_bucket_name
       FROM_EMAIL              = "noreply@infernobank.com"
-      #AWS_REGION              = data.aws_region.current.name
     }
   }
 
@@ -316,7 +323,6 @@ resource "aws_lambda_function" "send_notifications_error" {
   environment {
     variables = {
       NOTIFICATION_ERROR_TABLE_NAME = var.notification_error_table_name
-      #AWS_REGION                    = data.aws_region.current.name
     }
   }
 

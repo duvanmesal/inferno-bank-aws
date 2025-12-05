@@ -83,6 +83,14 @@ variable "card_get_report_function_name" {
   type = string
 }
 
+variable "card_get_invoke_arn" {
+  type = string
+}
+
+variable "card_get_function_name" {
+  type = string
+}
+
 variable "tags" {
   type        = map(string)
   description = "Common tags"
