@@ -5,41 +5,40 @@ import { successResponse, errorResponse } from "../utils/response"
 import type { Card } from "../types/card"
 import { verifyCvvUnlockToken } from "../utils/cvv-unlock-token"
 
-export const handler = async (
-  event: APIGatewayProxyEvent,
-): Promise<APIGatewayProxyResult> => {
+export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const cardId =
-      event.pathParameters?.cardId ||
-      event.pathParameters?.card_id
+    const cardNumber =
+      event.pathParameters?.cardNumber ||
+      event.pathParameters?.card_number
 
-    if (!cardId) {
-      return errorResponse("VALIDATION_ERROR", "cardId is required")
+    if (!cardNumber) {
+      return errorResponse("VALIDATION_ERROR", "cardNumber is required")
     }
 
     const cardTableName = process.env.CARD_TABLE_NAME!
 
-    const cardsResult = await docClient.send(
+    const result = await docClient.send(
       new QueryCommand({
         TableName: cardTableName,
-        KeyConditionExpression: "#uuid = :uuid",
+        IndexName: "card-number-index",
+        KeyConditionExpression: "#cardNumber = :cardNumber",
         ExpressionAttributeNames: {
-          "#uuid": "uuid",
+          "#cardNumber": "cardNumber",
         },
         ExpressionAttributeValues: {
-          ":uuid": cardId,
+          ":cardNumber": cardNumber,
         },
         Limit: 1,
       }),
     )
 
-    if (!cardsResult.Items || cardsResult.Items.length === 0) {
+    if (!result.Items || result.Items.length === 0) {
       return errorResponse("NOT_FOUND", "Card not found", undefined, 404)
     }
 
-    const card = cardsResult.Items[0] as Card
+    const card = result.Items[0] as Card
 
-    // 🔐 Verificar token temporal
+    // 🔐 Validar token temporal para ver CVV
     const unlockToken =
       event.headers["X-CVV-UNLOCK"] ||
       event.headers["x-cvv-unlock"]
@@ -70,7 +69,7 @@ export const handler = async (
 
     return successResponse(responseBody)
   } catch (error) {
-    console.error("[card-get] error:", error)
-    return errorResponse("INTERNAL_ERROR", "Failed to get card", undefined, 500)
+    console.error("[card-get-by-number] error:", error)
+    return errorResponse("INTERNAL_ERROR", "Failed to get card by number", undefined, 500)
   }
 }

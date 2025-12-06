@@ -10,6 +10,8 @@ export interface User {
   image?: string
   createdAt: string
   updatedAt: string
+  securityPinHash?: string
+  securityPinUpdatedAt?: string
 }
 
 export interface UserResponse {

@@ -298,3 +298,70 @@ resource "aws_lambda_permission" "card_get_by_user" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
+
+# === Security PIN Set ===
+resource "aws_apigatewayv2_integration" "security_pin_set" {
+  api_id                 = aws_apigatewayv2_api.http_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.security_pin_set_invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "security_pin_set" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "POST /security/pin/set"
+  target    = "integrations/${aws_apigatewayv2_integration.security_pin_set.id}"
+}
+
+resource "aws_lambda_permission" "security_pin_set" {
+  statement_id  = "AllowAPIGatewayInvokeSecurityPinSet"
+  action        = "lambda:InvokeFunction"
+  function_name = var.security_pin_set_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}
+
+# === Security PIN Verify CVV ===
+resource "aws_apigatewayv2_integration" "security_pin_verify_cvv" {
+  api_id                 = aws_apigatewayv2_api.http_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.security_pin_verify_cvv_invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "security_pin_verify_cvv" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "POST /security/pin/verify-cvv"
+  target    = "integrations/${aws_apigatewayv2_integration.security_pin_verify_cvv.id}"
+}
+
+resource "aws_lambda_permission" "security_pin_verify_cvv" {
+  statement_id  = "AllowAPIGatewayInvokeSecurityPinVerifyCvv"
+  action        = "lambda:InvokeFunction"
+  function_name = var.security_pin_verify_cvv_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}
+
+# === Card Get by Number ===
+resource "aws_apigatewayv2_integration" "card_get_by_number" {
+  api_id                 = aws_apigatewayv2_api.http_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.card_get_by_number_invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "card_get_by_number" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  # 👇 usamos {card_number} porque tu handler soporta cardNumber y card_number
+  route_key = "GET /cards/by-number/{card_number}"
+  target    = "integrations/${aws_apigatewayv2_integration.card_get_by_number.id}"
+}
+
+resource "aws_lambda_permission" "card_get_by_number" {
+  statement_id  = "AllowAPIGatewayInvokeCardGetByNumber"
+  action        = "lambda:InvokeFunction"
+  function_name = var.card_get_by_number_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}

@@ -1,10 +1,10 @@
-// Export all handlers for Lambda
 export { handler as cardApprovalHandler } from "./handlers/card-approval-worker"
 export { handler as cardRequestFailedHandler } from "./handlers/card-request-failed"
-export { handler as cardGetByUserHandler } from "./handlers/card-get-by-user";
+export { handler as cardGetByUserHandler } from "./handlers/card-get-by-user"
 export { handler as cardActivateHandler } from "./handlers/card-activate"
 export { handler as cardPurchaseHandler } from "./handlers/card-purchase"
 export { handler as cardTransactionSaveHandler } from "./handlers/card-transaction-save"
 export { handler as cardPaidCreditHandler } from "./handlers/card-paid-credit"
 export { handler as cardGetReportHandler } from "./handlers/card-get-report"
 export { handler as cardGetHandler } from "./handlers/card-get"
+export { handler as cardGetByNumberHandler } from "./handlers/card-get-by-number"

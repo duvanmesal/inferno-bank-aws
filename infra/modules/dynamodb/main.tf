@@ -67,10 +67,24 @@ resource "aws_dynamodb_table" "card_table" {
     type = "S"
   }
 
+  # atributo para número de tarjeta
+  attribute {
+    name = "cardNumber"
+    type = "S"
+  }
+
+  # Index por usuario
   global_secondary_index {
     name            = "user-cards-index"
     hash_key        = "user_id"
     range_key       = "createdAt"
+    projection_type = "ALL"
+  }
+
+  # GSI para buscar por número de tarjeta
+  global_secondary_index {
+    name            = "card-number-index"
+    hash_key        = "cardNumber"
     projection_type = "ALL"
   }
 
@@ -84,6 +98,7 @@ resource "aws_dynamodb_table" "card_table" {
 
   tags = var.tags
 }
+
 
 # Transaction Table
 resource "aws_dynamodb_table" "transaction_table" {

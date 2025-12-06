@@ -33,3 +33,8 @@ variable "project_name" {
   description = "Project name"
   default     = "inferno-bank"
 }
+
+variable "cvv_unlock_jwt_secret" {
+  type        = string
+  description = "Secret used for CVV unlock JWT"
+}

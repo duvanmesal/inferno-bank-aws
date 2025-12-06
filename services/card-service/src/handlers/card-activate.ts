@@ -1,8 +1,10 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
-import { docClient, QueryCommand, UpdateCommand } from "../utils/dynamodb"
+import { QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb"
+import { docClient } from "../utils/dynamodb"
 import { sendSQSMessage } from "../utils/sqs"
 import { successResponse, errorResponse } from "../utils/response"
 import type { Card } from "../types/card"
+import { generateCardData } from "../utils/card-number"
 
 interface ActivateRequest {
   userId: string
@@ -20,10 +22,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return errorResponse("VALIDATION_ERROR", "userId is required")
     }
 
-    const transactionTableName = process.env.TRANSACTION_TABLE_NAME!
     const cardTableName = process.env.CARD_TABLE_NAME!
+    const transactionTableName = process.env.TRANSACTION_TABLE_NAME!
 
-    // Get user's cards
+    // 🔎 Obtener tarjetas del usuario
     const cardsResult = await docClient.send(
       new QueryCommand({
         TableName: cardTableName,
@@ -46,94 +48,144 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return errorResponse("NOT_FOUND", "No credit card found for user", undefined, 404)
     }
 
+    // Si ya está activada devolvemos info (idempotente)
     if (creditCard.status === "ACTIVATED") {
       return successResponse({
         message: "Credit card is already activated",
         card: {
-          uuid: creditCard.uuid,
+          cardId: creditCard.uuid,
           status: creditCard.status,
+          creditLimit: creditCard.balance,
+          cardNumber: creditCard.cardNumber,
+          expiration: creditCard.expiration,
+          brand: creditCard.brand,
+          last4: creditCard.last4,
+          // cvv NO lo devolvemos aquí; el front debe usar el flujo de PIN
         },
       })
     }
 
-    // Count PURCHASE transactions for this user (from all cards)
+    // 🧮 Contar compras (regla de mínimo 10 PURCHASE entre todas las tarjetas del usuario)
     let purchaseCount = 0
+
     for (const card of cards) {
-      const transactionsResult = await docClient.send(
+      const txResult = await docClient.send(
         new QueryCommand({
           TableName: transactionTableName,
           IndexName: "card-transactions-index",
           KeyConditionExpression: "cardId = :cardId",
-          FilterExpression: "#type = :type",
-          ExpressionAttributeNames: {
-            "#type": "type",
-          },
           ExpressionAttributeValues: {
             ":cardId": card.uuid,
-            ":type": "PURCHASE",
           },
         }),
       )
 
-      purchaseCount += transactionsResult.Items?.length || 0
-    }
+      const items = (txResult.Items || []) as Array<{ type?: string }>
 
-    console.log(` User ${body.userId} has ${purchaseCount} purchase transactions`)
+      purchaseCount += items.filter((tx) => tx.type === "PURCHASE").length
+    }
 
     if (purchaseCount < 10) {
       return errorResponse(
         "FORBIDDEN",
         "Credit card activation requires at least 10 purchase transactions",
-        {
-          currentPurchases: purchaseCount,
-          requiredPurchases: 10,
-        },
+        { purchaseCount, requiredPurchases: 10 },
         403,
       )
     }
 
-    // Activate credit card
-    await docClient.send(
-      new UpdateCommand({
-        TableName: cardTableName,
-        Key: {
-          uuid: creditCard.uuid,
-          createdAt: creditCard.createdAt,
-        },
-        UpdateExpression: "SET #status = :status, #updatedAt = :updatedAt",
-        ExpressionAttributeNames: {
-          "#status": "status",
-          "#updatedAt": "updatedAt",
-        },
-        ExpressionAttributeValues: {
-          ":status": "ACTIVATED",
-          ":updatedAt": new Date().toISOString(),
-        },
-      }),
-    )
+    const nowIso = new Date().toISOString()
 
-    // Send notification
+    // Generar datos de tarjeta solo si no existen
+    let cardNumber = creditCard.cardNumber
+    let expiration = creditCard.expiration
+    let brand = creditCard.brand
+    let last4 = creditCard.last4
+
+    if (!cardNumber) {
+      const generated = generateCardData()
+      cardNumber = generated.cardNumber
+      expiration = generated.expiration
+      brand = generated.brand
+      last4 = generated.last4
+
+      await docClient.send(
+        new UpdateCommand({
+          TableName: cardTableName,
+          Key: {
+            uuid: creditCard.uuid,
+            createdAt: creditCard.createdAt,
+          },
+          UpdateExpression:
+            "SET #status = :status, #updatedAt = :updatedAt, #cardNumber = :cardNumber, #expiration = :expiration, #cvv = :cvv, #brand = :brand, #last4 = :last4",
+          ExpressionAttributeNames: {
+            "#status": "status",
+            "#updatedAt": "updatedAt",
+            "#cardNumber": "cardNumber",
+            "#expiration": "expiration",
+            "#cvv": "cvv",
+            "#brand": "brand",
+            "#last4": "last4",
+          },
+          ExpressionAttributeValues: {
+            ":status": "ACTIVATED",
+            ":updatedAt": nowIso,
+            ":cardNumber": generated.cardNumber,
+            ":expiration": generated.expiration,
+            ":cvv": generated.cvv,
+            ":brand": generated.brand,
+            ":last4": generated.last4,
+          },
+        }),
+      )
+    } else {
+      // Ya tiene número: solo actualizar estado
+      await docClient.send(
+        new UpdateCommand({
+          TableName: cardTableName,
+          Key: {
+            uuid: creditCard.uuid,
+            createdAt: creditCard.createdAt,
+          },
+          UpdateExpression: "SET #status = :status, #updatedAt = :updatedAt",
+          ExpressionAttributeNames: {
+            "#status": "status",
+            "#updatedAt": "updatedAt",
+          },
+          ExpressionAttributeValues: {
+            ":status": "ACTIVATED",
+            ":updatedAt": nowIso,
+          },
+        }),
+      )
+    }
+
+    // 📩 Notificación
     const notificationQueueUrl = process.env.NOTIFICATION_EMAIL_QUEUE!
     await sendSQSMessage(notificationQueueUrl, {
       userId: body.userId,
-      email: "",
       type: "CARD.ACTIVATE",
       data: {
         cardId: creditCard.uuid,
         creditLimit: creditCard.balance,
+        last4,
       },
     })
 
     return successResponse({
       message: "Credit card activated successfully",
       card: {
-        uuid: creditCard.uuid,
+        cardId: creditCard.uuid,
         status: "ACTIVATED",
         creditLimit: creditCard.balance,
+        cardNumber,
+        expiration,
+        brand,
+        last4,
       },
     })
-  } catch (error) {
-    console.error(" Card activation error:", error)
+  } catch (err) {
+    console.error("[card-activate] error:", err)
     return errorResponse("INTERNAL_ERROR", "Failed to activate card", undefined, 500)
   }
 }

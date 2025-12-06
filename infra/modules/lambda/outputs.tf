@@ -102,3 +102,27 @@ output "card_get_by_user_invoke_arn" {
 output "card_get_by_user_function_name" {
   value = aws_lambda_function.card_get_by_user.function_name
 }
+
+output "security_pin_set_invoke_arn" {
+  value = aws_lambda_function.security_pin_set.invoke_arn
+}
+
+output "security_pin_set_function_name" {
+  value = aws_lambda_function.security_pin_set.function_name
+}
+
+output "security_pin_verify_cvv_invoke_arn" {
+  value = aws_lambda_function.security_pin_verify_cvv.invoke_arn
+}
+
+output "security_pin_verify_cvv_function_name" {
+  value = aws_lambda_function.security_pin_verify_cvv.function_name
+}
+
+output "card_get_by_number_invoke_arn" {
+  value = aws_lambda_function.card_get_by_number.invoke_arn
+}
+
+output "card_get_by_number_function_name" {
+  value = aws_lambda_function.card_get_by_number.function_name
+}

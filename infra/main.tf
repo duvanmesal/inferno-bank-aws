@@ -95,6 +95,7 @@ module "lambda" {
   # Secrets
   jwt_secret_arn      = module.secrets.jwt_secret_arn
   password_secret_arn = module.secrets.password_secret_arn
+  cvv_unlock_jwt_secret = var.cvv_unlock_jwt_secret
 
   tags = local.common_tags
 }
@@ -117,6 +118,9 @@ module "apigw" {
   card_get_report_invoke_arn         = module.lambda.card_get_report_invoke_arn
   card_get_invoke_arn                = module.lambda.card_get_invoke_arn
   card_get_by_user_invoke_arn        = module.lambda.card_get_by_user_invoke_arn
+  security_pin_set_invoke_arn        = module.lambda.security_pin_set_invoke_arn
+  security_pin_verify_cvv_invoke_arn = module.lambda.security_pin_verify_cvv_invoke_arn
+  card_get_by_number_invoke_arn = module.lambda.card_get_by_number_invoke_arn
 
 
   # Lambda function names
@@ -132,6 +136,9 @@ module "apigw" {
   card_get_report_function_name         = module.lambda.card_get_report_function_name
   card_get_function_name                = module.lambda.card_get_function_name
   card_get_by_user_function_name        = module.lambda.card_get_by_user_function_name
+  security_pin_set_function_name        = module.lambda.security_pin_set_function_name
+  security_pin_verify_cvv_function_name = module.lambda.security_pin_verify_cvv_function_name
+  card_get_by_number_function_name = module.lambda.card_get_by_number_function_name
 
   tags = local.common_tags
 }

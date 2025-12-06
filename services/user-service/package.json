@@ -17,11 +17,13 @@
     "@aws-sdk/s3-request-presigner": "^3.600.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.2.0",
+    "jsonwebtoken": "^9.0.3",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.138",
     "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.12.0",
     "@types/uuid": "^9.0.8",
     "archiver": "^7.0.1",

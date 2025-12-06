@@ -98,3 +98,8 @@ variable "tags" {
   description = "Common tags"
   default     = {}
 }
+
+variable "cvv_unlock_jwt_secret" {
+  type        = string
+  description = "Secret used to sign CVV unlock JWT tokens"
+}

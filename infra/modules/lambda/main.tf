@@ -60,6 +60,7 @@ resource "aws_lambda_function" "card_get_by_user" {
       CARD_TABLE_NAME          = var.card_table_name
       TRANSACTION_TABLE_NAME   = var.transaction_table_name
       NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
+      CVV_UNLOCK_JWT_SECRET    = var.cvv_unlock_jwt_secret
     }
   }
 
@@ -295,6 +296,7 @@ resource "aws_lambda_function" "card_get" {
   environment {
     variables = {
       CARD_TABLE_NAME = var.card_table_name
+      CVV_UNLOCK_JWT_SECRET = var.cvv_unlock_jwt_secret
     }
   }
 
@@ -344,6 +346,73 @@ resource "aws_lambda_function" "send_notifications_error" {
   environment {
     variables = {
       NOTIFICATION_ERROR_TABLE_NAME = var.notification_error_table_name
+    }
+  }
+
+  tags = var.tags
+}
+
+# === security-pin-set ===
+resource "aws_lambda_function" "security_pin_set" {
+  function_name    = "security-pin-set-lambda-${var.env}"
+  role             = var.user_service_role_arn
+  runtime          = "nodejs20.x"
+  handler          = "index.securityPinSetHandler"
+  filename         = "${path.module}/../../../services/user-service/dist/user-service.zip"
+  source_code_hash = fileexists("${path.module}/../../../services/user-service/dist/user-service.zip") ? filebase64sha256("${path.module}/../../../services/user-service/dist/user-service.zip") : null
+  timeout          = 30
+  memory_size      = 512
+
+  environment {
+    variables = {
+      USER_TABLE_NAME       = var.user_table_name
+      JWT_SECRET_ARN        = var.jwt_secret_arn
+      PASSWORD_SECRET_ARN   = var.password_secret_arn
+      CVV_UNLOCK_JWT_SECRET = var.cvv_unlock_jwt_secret
+    }
+  }
+
+  tags = var.tags
+}
+
+# === security-pin-verify-cvv ===
+resource "aws_lambda_function" "security_pin_verify_cvv" {
+  function_name    = "security-pin-verify-cvv-lambda-${var.env}"
+  role             = var.user_service_role_arn
+  runtime          = "nodejs20.x"
+  handler          = "index.securityPinVerifyCvvHandler"
+  filename         = "${path.module}/../../../services/user-service/dist/user-service.zip"
+  source_code_hash = fileexists("${path.module}/../../../services/user-service/dist/user-service.zip") ? filebase64sha256("${path.module}/../../../services/user-service/dist/user-service.zip") : null
+  timeout          = 30
+  memory_size      = 512
+
+  environment {
+    variables = {
+      USER_TABLE_NAME       = var.user_table_name
+      JWT_SECRET_ARN        = var.jwt_secret_arn
+      PASSWORD_SECRET_ARN   = var.password_secret_arn
+      CVV_UNLOCK_JWT_SECRET = var.cvv_unlock_jwt_secret
+    }
+  }
+
+  tags = var.tags
+}
+
+# === card-get-by-number ===
+resource "aws_lambda_function" "card_get_by_number" {
+  function_name    = "card-get-by-number-lambda-${var.env}"
+  role             = var.card_service_role_arn
+  runtime          = "nodejs20.x"
+  handler          = "index.cardGetByNumberHandler"
+  filename         = "${path.module}/../../../services/card-service/dist/card-service.zip"
+  source_code_hash = fileexists("${path.module}/../../../services/card-service/dist/card-service.zip") ? filebase64sha256("${path.module}/../../../services/card-service/dist/card-service.zip") : null
+  timeout          = 30
+  memory_size      = 512
+
+  environment {
+    variables = {
+      CARD_TABLE_NAME       = var.card_table_name
+      CVV_UNLOCK_JWT_SECRET = var.cvv_unlock_jwt_secret
     }
   }
 
