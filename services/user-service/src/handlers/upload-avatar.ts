@@ -106,7 +106,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     return successResponse({ imageUrl })
   } catch (error) {
-    console.error("[v0] Upload avatar error:", error)
+    console.error(" Upload avatar error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to upload avatar", undefined, 500)
   }
 }

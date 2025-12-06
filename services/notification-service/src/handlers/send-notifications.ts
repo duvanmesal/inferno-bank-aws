@@ -12,7 +12,7 @@ export const handler = async (event: SQSEvent): Promise<void> => {
     try {
       await processNotification(record)
     } catch (error) {
-      console.error("[v0] Error processing notification:", error)
+      console.error(" Error processing notification:", error)
       // SQS will retry and eventually send to DLQ
       throw error
     }
@@ -23,7 +23,7 @@ async function processNotification(record: SQSRecord): Promise<void> {
   const message: NotificationMessage = JSON.parse(record.body)
   const { userId, email: providedEmail, type, data } = message
 
-  console.log(`[v0] Processing notification: ${type} for user: ${userId}`)
+  console.log(` Processing notification: ${type} for user: ${userId}`)
 
   // Get user email if not provided
   let userEmail = providedEmail
@@ -62,7 +62,7 @@ async function processNotification(record: SQSRecord): Promise<void> {
   try {
     template = await getS3Object(templateBucket, templateKey)
   } catch (error) {
-    console.log(`[v0] Template not found: ${templateKey}, using default`)
+    console.log(` Template not found: ${templateKey}, using default`)
     template = getDefaultTemplate(type)
   }
 
@@ -88,7 +88,7 @@ async function processNotification(record: SQSRecord): Promise<void> {
     htmlBody: htmlBody,
   })
 
-  console.log(`[v0] Email sent to: ${userEmail}`)
+  console.log(` Email sent to: ${userEmail}`)
 
   // Save notification record
   const notificationId = uuidv4()
@@ -107,7 +107,7 @@ async function processNotification(record: SQSRecord): Promise<void> {
     }),
   )
 
-  console.log(`[v0] Notification record saved: ${notificationId}`)
+  console.log(` Notification record saved: ${notificationId}`)
 }
 
 function getDefaultTemplate(type: string): string {

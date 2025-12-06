@@ -20,7 +20,7 @@ export const handler = async (event: SQSEvent): Promise<void> => {
     try {
       await processRecord(record)
     } catch (error) {
-      console.error("[v0] Error processing card request:", error)
+      console.error(" Error processing card request:", error)
       // SQS will automatically retry and eventually send to DLQ
       throw error
     }
@@ -31,7 +31,7 @@ async function processRecord(record: SQSRecord): Promise<void> {
   const message: CardRequestMessage = JSON.parse(record.body)
   const { userId, request } = message
 
-  console.log(`[v0] Processing card request: ${request} for user: ${userId}`)
+  console.log(` Processing card request: ${request} for user: ${userId}`)
 
   const cardUuid = uuidv4()
   const now = new Date().toISOString()
@@ -42,7 +42,7 @@ async function processRecord(record: SQSRecord): Promise<void> {
     const score = generateCreditScore()
     const creditLimit = calculateCreditLimit(score)
 
-    console.log(`[v0] Credit score: ${score}, limit: ${creditLimit}`)
+    console.log(` Credit score: ${score}, limit: ${creditLimit}`)
 
     card = {
       uuid: cardUuid,
@@ -76,7 +76,7 @@ async function processRecord(record: SQSRecord): Promise<void> {
     }),
   )
 
-  console.log(`[v0] Card created: ${cardUuid}`)
+  console.log(` Card created: ${cardUuid}`)
 
   // Send notification
   const notificationQueueUrl = process.env.NOTIFICATION_EMAIL_QUEUE!

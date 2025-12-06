@@ -144,7 +144,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     return successResponse(userResponse, 201)
   } catch (error) {
-    console.error("[v0] Register error:", error)
+    console.error(" Register error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to register user", undefined, 500)
   }
 }

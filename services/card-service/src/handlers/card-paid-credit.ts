@@ -132,7 +132,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       201,
     )
   } catch (error) {
-    console.error("[v0] Payment error:", error)
+    console.error(" Payment error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to process payment", undefined, 500)
   }
 }

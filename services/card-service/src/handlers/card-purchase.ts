@@ -166,7 +166,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       201,
     )
   } catch (error) {
-    console.error("[v0] Purchase error:", error)
+    console.error(" Purchase error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to process purchase", undefined, 500)
   }
 }

@@ -96,3 +96,11 @@ variable "tags" {
   description = "Common tags"
   default     = {}
 }
+
+variable "card_get_by_user_invoke_arn" {
+  type = string
+}
+
+variable "card_get_by_user_function_name" {
+  type = string
+}

@@ -82,7 +82,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Fire and forget
     sendSQSMessage(notificationQueueUrl, notification).catch((err) =>
-      console.error("[v0] Failed to send notification:", err),
+      console.error(" Failed to send notification:", err),
     )
 
     return successResponse({
@@ -90,7 +90,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       expiresIn: 3600,
     })
   } catch (error) {
-    console.error("[v0] Login error:", error)
+    console.error(" Login error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to login", undefined, 500)
   }
 }

@@ -76,7 +76,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const transactions = (transactionsResult.Items || []) as Transaction[]
 
-    console.log(`[v0] Found ${transactions.length} transactions for card ${cardId}`)
+    console.log(` Found ${transactions.length} transactions for card ${cardId}`)
 
     if (transactions.length === 0) {
       return successResponse({
@@ -131,7 +131,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       },
     })
   } catch (error) {
-    console.error("[v0] Report generation error:", error)
+    console.error(" Report generation error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to generate report", undefined, 500)
   }
 }

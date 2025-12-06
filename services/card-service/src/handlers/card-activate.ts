@@ -78,7 +78,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       purchaseCount += transactionsResult.Items?.length || 0
     }
 
-    console.log(`[v0] User ${body.userId} has ${purchaseCount} purchase transactions`)
+    console.log(` User ${body.userId} has ${purchaseCount} purchase transactions`)
 
     if (purchaseCount < 10) {
       return errorResponse(
@@ -133,7 +133,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       },
     })
   } catch (error) {
-    console.error("[v0] Card activation error:", error)
+    console.error(" Card activation error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to activate card", undefined, 500)
   }
 }

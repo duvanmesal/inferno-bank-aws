@@ -276,3 +276,25 @@ resource "aws_lambda_permission" "card_get" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
+
+# GET /users/{user_id}/cards
+resource "aws_apigatewayv2_integration" "card_get_by_user" {
+  api_id                 = aws_apigatewayv2_api.http_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.card_get_by_user_invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "card_get_by_user" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "GET /users/{user_id}/cards"
+  target    = "integrations/${aws_apigatewayv2_integration.card_get_by_user.id}"
+}
+
+resource "aws_lambda_permission" "card_get_by_user" {
+  statement_id  = "AllowAPIGatewayInvokeCardGetByUser"
+  action        = "lambda:InvokeFunction"
+  function_name = var.card_get_by_user_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}

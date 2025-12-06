@@ -112,12 +112,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Fire and forget
     sendSQSMessage(notificationQueueUrl, notification).catch((err) =>
-      console.error("[v0] Failed to send notification:", err),
+      console.error(" Failed to send notification:", err),
     )
 
     return successResponse({ message: "Profile updated successfully" })
   } catch (error) {
-    console.error("[v0] Update profile error:", error)
+    console.error(" Update profile error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to update profile", undefined, 500)
   }
 }

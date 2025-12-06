@@ -129,7 +129,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       201,
     )
   } catch (error) {
-    console.error("[v0] Saving transaction error:", error)
+    console.error(" Saving transaction error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to process saving", undefined, 500)
   }
 }

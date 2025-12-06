@@ -8,13 +8,13 @@ export const handler = async (event: SQSEvent): Promise<void> => {
     try {
       await processFailedNotification(record)
     } catch (error) {
-      console.error("[v0] Error logging failed notification:", error)
+      console.error(" Error logging failed notification:", error)
     }
   }
 }
 
 async function processFailedNotification(record: SQSRecord): Promise<void> {
-  console.log("[v0] Processing failed notification:", record.body)
+  console.log(" Processing failed notification:", record.body)
 
   let notificationType: any = "UNKNOWN"
   let message: NotificationMessage | null = null
@@ -43,5 +43,5 @@ async function processFailedNotification(record: SQSRecord): Promise<void> {
     }),
   )
 
-  console.log(`[v0] Notification error record saved: ${errorRecord.uuid}`)
+  console.log(` Notification error record saved: ${errorRecord.uuid}`)
 }

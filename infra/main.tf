@@ -116,6 +116,8 @@ module "apigw" {
   card_paid_credit_card_invoke_arn   = module.lambda.card_paid_credit_card_invoke_arn
   card_get_report_invoke_arn         = module.lambda.card_get_report_invoke_arn
   card_get_invoke_arn                = module.lambda.card_get_invoke_arn
+  card_get_by_user_invoke_arn        = module.lambda.card_get_by_user_invoke_arn
+
 
   # Lambda function names
   register_user_function_name           = module.lambda.register_user_function_name
@@ -129,6 +131,7 @@ module "apigw" {
   card_paid_credit_card_function_name   = module.lambda.card_paid_credit_card_function_name
   card_get_report_function_name         = module.lambda.card_get_report_function_name
   card_get_function_name                = module.lambda.card_get_function_name
+  card_get_by_user_function_name        = module.lambda.card_get_by_user_function_name
 
   tags = local.common_tags
 }

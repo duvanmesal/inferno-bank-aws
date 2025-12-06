@@ -65,7 +65,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     return successResponse(userResponse)
   } catch (error) {
-    console.error("[v0] Get profile error:", error)
+    console.error(" Get profile error:", error)
     return errorResponse("INTERNAL_ERROR", "Failed to get profile", undefined, 500)
   }
 }

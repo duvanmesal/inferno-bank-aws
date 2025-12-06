@@ -94,3 +94,11 @@ output "card_get_report_function_name" {
 output "card_get_function_name" {
   value = aws_lambda_function.card_get.function_name
 }
+
+output "card_get_by_user_invoke_arn" {
+  value = aws_lambda_function.card_get_by_user.invoke_arn
+}
+
+output "card_get_by_user_function_name" {
+  value = aws_lambda_function.card_get_by_user.function_name
+}

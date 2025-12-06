@@ -45,6 +45,27 @@ resource "aws_lambda_function" "login_user" {
   tags = var.tags
 }
 
+resource "aws_lambda_function" "card_get_by_user" {
+  function_name    = "card-get-by-user-lambda-${var.env}"
+  role             = var.card_service_role_arn
+  runtime          = "nodejs20.x"
+  handler          = "index.cardGetByUserHandler"
+  filename         = "${path.module}/../../../services/card-service/dist/card-service.zip"
+  source_code_hash = fileexists("${path.module}/../../../services/card-service/dist/card-service.zip") ? filebase64sha256("${path.module}/../../../services/card-service/dist/card-service.zip") : null
+  timeout          = 30
+  memory_size      = 512
+
+  environment {
+    variables = {
+      CARD_TABLE_NAME          = var.card_table_name
+      TRANSACTION_TABLE_NAME   = var.transaction_table_name
+      NOTIFICATION_EMAIL_QUEUE = var.notification_email_queue_url
+    }
+  }
+
+  tags = var.tags
+}
+
 resource "aws_lambda_function" "update_user" {
   function_name    = "update-user-lambda-${var.env}"
   role             = var.user_service_role_arn

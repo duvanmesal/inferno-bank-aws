@@ -8,13 +8,13 @@ export const handler = async (event: SQSEvent): Promise<void> => {
     try {
       await processFailedRecord(record)
     } catch (error) {
-      console.error("[v0] Error logging failed card request:", error)
+      console.error(" Error logging failed card request:", error)
     }
   }
 }
 
 async function processFailedRecord(record: SQSRecord): Promise<void> {
-  console.log("[v0] Processing failed card request:", record.body)
+  console.log(" Processing failed card request:", record.body)
 
   const errorRecord: CardErrorRecord = {
     uuid: uuidv4(),
@@ -41,5 +41,5 @@ async function processFailedRecord(record: SQSRecord): Promise<void> {
     }),
   )
 
-  console.log(`[v0] Error record saved: ${errorRecord.uuid}`)
+  console.log(` Error record saved: ${errorRecord.uuid}`)
 }
