@@ -9,15 +9,20 @@ const service = new TransactionService(paymentRepo, coreBank);
 
 export const handler = async (event) => {
   try {
+    if (!event.Records || event.Records.length === 0) {
+      console.warn("[transaction] No SQS records to process");
+      return;
+    }
+
     for (const record of event.Records) {
       try {
         const dto = TransactionMessageDto.fromSqsRecord(record);
-        await service.process(dto);
+        await service.process(dto.traceId);
       } catch (err) {
-        console.error("❌ Error processing record:", err);
+        console.error("❌ [transaction] Error processing record:", err);
       }
     }
   } catch (err) {
-    console.error("❌ Unhandled error:", err);
+    console.error("❌ [transaction] UNCAUGHT ERROR:", err);
   }
 };

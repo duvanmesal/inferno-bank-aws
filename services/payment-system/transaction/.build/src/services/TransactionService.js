@@ -1,12 +1,15 @@
 // services/payment-system/transaction/src/services/TransactionService.js
 
-const PaymentRepository = require("../repositories/PaymentRepository")
-const CoreBankService = require("./CoreBankService")
+import { PaymentRepository } from "../repositories/PaymentRepository.js";
+import { CoreBankService } from "./CoreBankService.js";
 
-class TransactionService {
-  constructor() {
-    this.paymentRepo = new PaymentRepository()
-    this.coreBank = new CoreBankService()
+export class TransactionService {
+  constructor(
+    paymentRepo = new PaymentRepository(),
+    coreBank = new CoreBankService(),
+  ) {
+    this.paymentRepo = paymentRepo;
+    this.coreBank = coreBank;
   }
 
   /**
@@ -20,104 +23,106 @@ class TransactionService {
    * y si algo falla, esos logs quedan en payment.error.logs
    */
   async process(traceId) {
-    const logs = []
+    const logs = [];
     const addLog = (msg, extra) => {
       const line =
-        extra !== undefined
-          ? `${msg} | ${JSON.stringify(extra)}`
-          : msg
-      logs.push(line)
-      console.log("[TransactionService]", line)
-    }
+        extra !== undefined ? `${msg} | ${JSON.stringify(extra)}` : msg;
+      logs.push(line);
+      console.log("[TransactionService]", line);
+    };
 
-    addLog("Processing payment", { traceId })
+    addLog("Processing payment", { traceId });
 
-    let payment
+    let payment;
 
     try {
-      payment = await this.paymentRepo.getByTraceId(traceId)
+      payment = await this.paymentRepo.getByTraceId(traceId);
 
       if (!payment) {
-        addLog("Payment not found", { traceId })
-        await this.paymentRepo.markAsFailed(traceId, "Payment not found", logs)
-        return
+        addLog("Payment not found", { traceId });
+        await this.paymentRepo.markAsFailed(
+          traceId,
+          "Payment not found",
+          logs,
+        );
+        return;
       }
 
       addLog("Loaded payment", {
         status: payment.status,
         userId: payment.userId,
         cardId: payment.cardId,
-      })
+      });
 
-      const { cardId, service } = payment
+      const { cardId, service } = payment;
 
       if (!cardId) {
-        addLog("Payment has no cardId", { traceId })
+        addLog("Payment has no cardId", { traceId });
         await this.paymentRepo.markAsFailed(
           traceId,
           "Card not associated to payment",
           logs,
-        )
-        return
+        );
+        return;
       }
 
       if (!service || typeof service.precio_mensual !== "number") {
         addLog("Payment has invalid service data", {
           traceId,
           service,
-        })
+        });
         await this.paymentRepo.markAsFailed(
           traceId,
           "Invalid service data for payment",
           logs,
-        )
-        return
+        );
+        return;
       }
 
-      const amount = service.precio_mensual
-      const merchant = this.buildMerchantFromService(service)
+      const amount = service.precio_mensual;
+      const merchant = this.buildMerchantFromService(service);
 
       addLog("Computed payment details", {
         amount,
         merchant,
-      })
+      });
 
       // Marcamos como IN_PROGRESS antes de llamar al CoreBank
-      await this.paymentRepo.markAsInProgress(traceId, logs)
-      addLog("Marked payment as IN_PROGRESS")
+      await this.paymentRepo.markAsInProgress(traceId, logs);
+      addLog("Marked payment as IN_PROGRESS");
 
       // Ejecutamos la transacción en el CoreBank (card-service)
       addLog("Calling CoreBank.executeTransaction", {
         cardId,
         amount,
         merchant,
-      })
+      });
 
       await this.coreBank.executeTransaction(cardId, amount, {
         merchant,
         source: "SERVICE_PAYMENT",
         paymentTraceId: traceId,
         logs,
-      })
+      });
 
-      addLog("CoreBank transaction executed successfully")
+      addLog("CoreBank transaction executed successfully");
 
       // Marcamos como FINISH sin error, pero puedes conservar logs si quieres
-      await this.paymentRepo.markAsFinished(traceId, logs)
-      addLog("Marked payment as FINISH")
+      await this.paymentRepo.markAsFinished(traceId, logs);
+      addLog("Marked payment as FINISH");
     } catch (error) {
       const errorMessage =
         error && error.message
           ? error.message
-          : "Transaction rejected by CoreBank"
+          : "Transaction rejected by CoreBank";
 
       addLog("Error in TransactionService.process", {
         traceId,
         errorMessage,
         stack: error && error.stack ? error.stack : null,
-      })
+      });
 
-      await this.paymentRepo.markAsFailed(traceId, errorMessage, logs)
+      await this.paymentRepo.markAsFailed(traceId, errorMessage, logs);
     }
   }
 
@@ -128,17 +133,15 @@ class TransactionService {
    * - "Empresa Eléctrica Nacional - Luz Residencial"
    */
   buildMerchantFromService(service) {
-    if (!service) return "InfernoBank Payment System"
+    if (!service) return "InfernoBank Payment System";
 
-    const proveedor = service.proveedor || service.categoria || "Servicio"
-    const detalle = service.plan || service.servicio || ""
+    const proveedor = service.proveedor || service.categoria || "Servicio";
+    const detalle = service.plan || service.servicio || "";
 
     if (detalle) {
-      return `${proveedor} - ${detalle}`
+      return `${proveedor} - ${detalle}`;
     }
 
-    return String(proveedor)
+    return String(proveedor);
   }
 }
-
-module.exports = TransactionService

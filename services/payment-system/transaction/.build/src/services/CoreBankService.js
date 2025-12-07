@@ -1,9 +1,8 @@
 // services/payment-system/transaction/src/services/CoreBankService.js
 
-const fetch = require("node-fetch")
-const env = require("../config/env")
+import { env } from "../config/env.js";
 
-class CoreBankService {
+export class CoreBankService {
   /**
    * Ejecuta una transacción de compra en el CoreBank (card-service).
    *
@@ -16,92 +15,70 @@ class CoreBankService {
    *   - logs?: string[]   // opcional, solo para debug
    */
   async executeTransaction(cardId, amount, metadata = {}) {
-    const { merchant = "InfernoBank Payment System", source, paymentTraceId, logs } = metadata
-
+    const logs = Array.isArray(metadata.logs) ? metadata.logs : [];
     const addLog = (msg, extra) => {
       const line =
-        extra !== undefined
-          ? `${msg} | ${JSON.stringify(extra)}`
-          : msg
+        extra !== undefined ? `${msg} | ${JSON.stringify(extra)}` : msg;
+      logs.push(line);
+      console.log("[CoreBankService]", line);
+    };
 
-      if (Array.isArray(logs)) {
-        logs.push(`[CoreBankService] ${line}`)
-      }
-
-      console.log("[CoreBankService]", line)
+    if (!env.CORE_BANK_BASE_URL) {
+      addLog("CORE_BANK_BASE_URL is not set");
+      throw new Error("CORE_BANK_BASE_URL is not configured");
     }
 
-    if (!cardId) {
-      const msg = "cardId is required to execute transaction"
-      addLog("Validation error", { msg })
-      throw new Error(msg)
-    }
-
-    if (typeof amount !== "number" || amount <= 0) {
-      const msg = "amount must be a positive number"
-      addLog("Validation error", { msg, amount })
-      throw new Error(msg)
-    }
-
-    const url = `${env.CORE_BANK_BASE_URL}/transactions/purchase`
+    const url = `${env.CORE_BANK_BASE_URL}/transactions/purchase`;
 
     const body = {
       cardId,
       amount,
-      merchant,
-    }
-
-    if (source) {
-      body.source = source
-    }
-
-    if (paymentTraceId) {
-      body.paymentTraceId = paymentTraceId
-    }
-
-    addLog("Calling CoreBank /transactions/purchase", {
-      url,
-      body,
-    })
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+      metadata: {
+        merchant: metadata.merchant,
+        source: metadata.source || "SERVICE_PAYMENT",
+        paymentTraceId: metadata.paymentTraceId,
       },
-      body: JSON.stringify(body),
-    })
+    };
 
-    const rawText = await response.text().catch(() => "")
-    let data = null
+    addLog("Calling CoreBank purchase endpoint", { url, body });
 
+    let response;
     try {
-      data = rawText ? JSON.parse(rawText) : null
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      addLog("Network error calling CoreBank", {
+        message: err && err.message ? err.message : String(err),
+      });
+      throw err;
+    }
+
+    let data = null;
+    try {
+      const text = await response.text();
+      data = text ? JSON.parse(text) : null;
     } catch {
-      // ignore parse error, keep rawText in logs
+      // Si la respuesta no es JSON, la dejamos como null
     }
 
     if (!response.ok) {
       const errorInfo = {
         status: response.status,
-        statusText: response.statusText,
-        body: rawText,
-        parsed: data,
-      }
+        body: data,
+      };
+      addLog("CoreBank transaction failed", errorInfo);
 
-      addLog("CoreBank responded with error", errorInfo)
-
-      const message = `CoreBank transaction failed with status ${response.status}`
-      const err = new Error(message)
-      // opcional: adjuntar info para el catch de arriba
-      err.coreBankResponse = errorInfo
-      throw err
+      const message = `CoreBank transaction failed with status ${response.status}`;
+      const err = new Error(message);
+      err.coreBankResponse = errorInfo;
+      throw err;
     }
 
-    addLog("CoreBank transaction success", { data })
+    addLog("CoreBank transaction success", { data });
 
-    return data || { message: "Purchase processed" }
+    return data || { message: "Purchase processed" };
   }
 }
-
-module.exports = CoreBankService
