@@ -1,6 +1,4 @@
-// services/payment-system/check-balance/src/handlers/check-balance.js
-
-const { SQSEvent } = require("aws-lambda") // solo para tipos, si quieres
+const { SQSEvent } = require("aws-lambda")
 const PaymentRepository = require("../repositories/PaymentRepository")
 const fetch = require("node-fetch")
 

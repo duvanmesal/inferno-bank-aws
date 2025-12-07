@@ -1,51 +1,124 @@
-import {
-  DynamoDBClient,
-  PutItemCommand,
-  UpdateItemCommand,
-  GetItemCommand
-} from "@aws-sdk/client-dynamodb";
+const { docClient, GetCommand, UpdateCommand } = require("../utils/dynamodb")
 
-import { env } from "../config/env.js";
+const TABLE_NAME = process.env.PAYMENT_TABLE_NAME
 
-const dynamo = new DynamoDBClient({});
+if (!TABLE_NAME) {
+  console.warn(
+    "[PaymentRepository] PAYMENT_TABLE_NAME env var is not set. Repository will not work correctly.",
+  )
+}
 
-export class PaymentRepository {
-  async getPayment(traceId) {
-    const res = await dynamo.send(
-      new GetItemCommand({
-        TableName: env.PAYMENT_TABLE_NAME,
-        Key: { traceId: { S: traceId } }
-      })
-    );
-
-    if (!res.Item) return null;
-
-    return {
-      traceId: res.Item.traceId.S,
-      userId: res.Item.userId.S,
-      cardId: res.Item.cardId.S,
-      service: JSON.parse(res.Item.service.S),
-      status: res.Item.status.S,
-      error: res.Item.error?.S ?? null,
-      createdAt: res.Item.createdAt.S,
-      updatedAt: res.Item.updatedAt.S
-    };
+class PaymentRepository {
+  constructor() {
+    this.tableName = TABLE_NAME
   }
 
-  async updateStatus(traceId, status) {
-    const now = new Date().toISOString();
+  async getByTraceId(traceId) {
+    console.log(`[PaymentRepository] getByTraceId traceId=${traceId}`)
 
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: env.PAYMENT_TABLE_NAME,
-        Key: { traceId: { S: traceId } },
-        UpdateExpression: "SET #s = :s, updatedAt = :u",
-        ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: {
-          ":s": { S: status },
-          ":u": { S: now }
-        }
-      })
-    );
+    const result = await docClient.send(
+      new GetCommand({
+        TableName: this.tableName,
+        Key: { traceId },
+      }),
+    )
+
+    if (!result.Item) {
+      console.log(`[PaymentRepository] Payment not found traceId=${traceId}`)
+      return null
+    }
+
+    return result.Item
+  }
+
+  buildError(message, logs) {
+    const safeLogs = Array.isArray(logs) ? logs : []
+    return {
+      message: message || null,
+      logs: safeLogs,
+    }
+  }
+
+  async markAsInProgress(traceId, logs) {
+    const now = new Date().toISOString()
+    const error = this.buildError(null, logs)
+
+    console.log(
+      `[PaymentRepository] markAsInProgress traceId=${traceId}, logsCount=${error.logs.length}`,
+    )
+
+    const update = {
+      TableName: this.tableName,
+      Key: { traceId },
+      UpdateExpression: "SET #status = :status, #updatedAt = :updatedAt, #error = :error",
+      ExpressionAttributeNames: {
+        "#status": "status",
+        "#updatedAt": "updatedAt",
+        "#error": "error",
+      },
+      ExpressionAttributeValues: {
+        ":status": "IN_PROGRESS",
+        ":updatedAt": now,
+        ":error": error,
+      },
+    }
+
+    await docClient.send(new UpdateCommand(update))
+  }
+
+  async markAsFinished(traceId, logs) {
+    const now = new Date().toISOString()
+    const error = this.buildError(null, logs)
+
+    console.log(
+      `[PaymentRepository] markAsFinished traceId=${traceId}, logsCount=${error.logs.length}`,
+    )
+
+    const update = {
+      TableName: this.tableName,
+      Key: { traceId },
+      UpdateExpression: "SET #status = :status, #updatedAt = :updatedAt, #error = :error",
+      ExpressionAttributeNames: {
+        "#status": "status",
+        "#updatedAt": "updatedAt",
+        "#error": "error",
+      },
+      ExpressionAttributeValues: {
+        ":status": "FINISH",
+        ":updatedAt": now,
+        ":error": error,
+      },
+    }
+
+    await docClient.send(new UpdateCommand(update))
+  }
+
+  async markAsFailed(traceId, message, logs) {
+    const now = new Date().toISOString()
+    const error = this.buildError(message, logs)
+
+    console.log(
+      `[PaymentRepository] markAsFailed traceId=${traceId}, message="${message}", logsCount=${error.logs.length}`,
+    )
+
+    const update = {
+      TableName: this.tableName,
+      Key: { traceId },
+      UpdateExpression: "SET #status = :status, #updatedAt = :updatedAt, #error = :error",
+      ExpressionAttributeNames: {
+        "#status": "status",
+        "#updatedAt": "updatedAt",
+        "#error": "error",
+      },
+      ExpressionAttributeValues: {
+        ":status": "FAILED",
+        ":updatedAt": now,
+        ":error": error,
+      },
+    }
+
+    await docClient.send(new UpdateCommand(update))
   }
 }
+
+module.exports = PaymentRepository

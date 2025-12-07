@@ -13,9 +13,6 @@ class PaymentRepository {
     this.tableName = TABLE_NAME
   }
 
-  /**
-   * Obtiene un payment por traceId
-   */
   async getByTraceId(traceId) {
     console.log(`[PaymentRepository] getByTraceId traceId=${traceId}`)
 
@@ -34,11 +31,6 @@ class PaymentRepository {
     return result.Item
   }
 
-  /**
-   * Construye el campo error.
-   * Siempre devuelve un objeto { message, logs } aunque logs venga vacío,
-   * para que puedas verlo desde el endpoint.
-   */
   buildError(message, logs) {
     const safeLogs = Array.isArray(logs) ? logs : []
     return {
@@ -47,10 +39,6 @@ class PaymentRepository {
     }
   }
 
-  /**
-   * Marca el payment como IN_PROGRESS.
-   * Opcionalmente puede guardar logs iniciales.
-   */
   async markAsInProgress(traceId, logs) {
     const now = new Date().toISOString()
     const error = this.buildError(null, logs)
@@ -78,10 +66,6 @@ class PaymentRepository {
     await docClient.send(new UpdateCommand(update))
   }
 
-  /**
-   * Marca el payment como FINISH (o FINISHED si luego renombramos) sin error.
-   * Puedes opcionalmente dejar logs de éxito.
-   */
   async markAsFinished(traceId, logs) {
     const now = new Date().toISOString()
     const error = this.buildError(null, logs)
@@ -109,9 +93,6 @@ class PaymentRepository {
     await docClient.send(new UpdateCommand(update))
   }
 
-  /**
-   * Marca el payment como FAILED y guarda mensaje + logs en error.
-   */
   async markAsFailed(traceId, message, logs) {
     const now = new Date().toISOString()
     const error = this.buildError(message, logs)
