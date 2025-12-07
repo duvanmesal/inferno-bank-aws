@@ -126,3 +126,11 @@ output "card_get_by_number_invoke_arn" {
 output "card_get_by_number_function_name" {
   value = aws_lambda_function.card_get_by_number.function_name
 }
+
+output "user_transactions_get_invoke_arn" {
+  value = aws_lambda_function.user_transactions_get.invoke_arn
+}
+
+output "user_transactions_get_function_name" {
+  value = aws_lambda_function.user_transactions_get.function_name
+}

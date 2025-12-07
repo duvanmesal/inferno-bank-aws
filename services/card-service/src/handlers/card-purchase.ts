@@ -1,3 +1,5 @@
+// services/card-service/src/handlers/card-purchase.ts
+
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
 import { v4 as uuidv4 } from "uuid"
 import { docClient, UpdateCommand, PutCommand, QueryCommand } from "../utils/dynamodb"
@@ -14,18 +16,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const body: PurchaseRequest = JSON.parse(event.body)
 
-    if (!body.merchant || !body.cardId || body.amount === undefined) {
-      return errorResponse("VALIDATION_ERROR", "merchant, cardId, and amount are required")
+    // 🔎 Validaciones básicas
+    if (!body.merchant || typeof body.merchant !== "string") {
+      return errorResponse("VALIDATION_ERROR", "merchant is required and must be a string")
     }
 
-    if (body.amount <= 0) {
-      return errorResponse("VALIDATION_ERROR", "Amount must be greater than 0")
+    if (!body.cardId || typeof body.cardId !== "string") {
+      return errorResponse("VALIDATION_ERROR", "cardId is required and must be a string")
+    }
+
+    if (typeof body.amount !== "number" || body.amount <= 0) {
+      return errorResponse("VALIDATION_ERROR", "amount must be a positive number")
     }
 
     const cardTableName = process.env.CARD_TABLE_NAME!
     const transactionTableName = process.env.TRANSACTION_TABLE_NAME!
 
-    // Get card - need to query by uuid
+    // 📥 Obtener tarjeta por uuid
     const cardsResult = await docClient.send(
       new QueryCommand({
         TableName: cardTableName,
@@ -45,89 +52,97 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const card = cardsResult.Items[0] as Card
 
-    // Check if card is activated
+    // 🔐 Validar estado de la tarjeta
     if (card.status !== "ACTIVATED") {
       return errorResponse("FORBIDDEN", "Card is not activated", { status: card.status }, 403)
     }
 
-    // Process based on card type
+    const now = new Date().toISOString()
+
+    // 🧮 Preparar actualización de saldo / crédito
+    let updateExpression = "SET #updatedAt = :updatedAt"
+    const expressionAttributeNames: Record<string, string> = {
+      "#updatedAt": "updatedAt",
+    }
+    const expressionAttributeValues: Record<string, any> = {
+      ":updatedAt": now,
+    }
+
     if (card.type === "DEBIT") {
+      // Debe tener saldo suficiente
       if (card.balance < body.amount) {
         return errorResponse(
           "FORBIDDEN",
           "Insufficient balance",
           {
-            available: card.balance,
-            requested: body.amount,
+            balance: card.balance,
+            amount: body.amount,
           },
           403,
         )
       }
 
-      // Update debit card balance
       const newBalance = card.balance - body.amount
-
-      await docClient.send(
-        new UpdateCommand({
-          TableName: cardTableName,
-          Key: {
-            uuid: card.uuid,
-            createdAt: card.createdAt,
-          },
-          UpdateExpression: "SET balance = :balance, updatedAt = :updatedAt",
-          ExpressionAttributeValues: {
-            ":balance": newBalance,
-            ":updatedAt": new Date().toISOString(),
-          },
-        }),
-      )
+      updateExpression += ", #balance = :balance"
+      expressionAttributeNames["#balance"] = "balance"
+      expressionAttributeValues[":balance"] = newBalance
     } else if (card.type === "CREDIT") {
+      // Límite de crédito: balance = límite total, usedBalance = usado
       const availableCredit = card.balance - card.usedBalance
 
       if (availableCredit < body.amount) {
         return errorResponse(
           "FORBIDDEN",
-          "Insufficient credit",
+          "Insufficient credit limit",
           {
-            available: availableCredit,
-            requested: body.amount,
             limit: card.balance,
-            used: card.usedBalance,
+            usedBalance: card.usedBalance,
+            availableCredit,
+            amount: body.amount,
           },
           403,
         )
       }
 
-      // Update credit card used balance
       const newUsedBalance = card.usedBalance + body.amount
-
-      await docClient.send(
-        new UpdateCommand({
-          TableName: cardTableName,
-          Key: {
-            uuid: card.uuid,
-            createdAt: card.createdAt,
-          },
-          UpdateExpression: "SET usedBalance = :usedBalance, updatedAt = :updatedAt",
-          ExpressionAttributeValues: {
-            ":usedBalance": newUsedBalance,
-            ":updatedAt": new Date().toISOString(),
-          },
-        }),
-      )
+      updateExpression += ", #usedBalance = :usedBalance"
+      expressionAttributeNames["#usedBalance"] = "usedBalance"
+      expressionAttributeValues[":usedBalance"] = newUsedBalance
+    } else {
+      return errorResponse("VALIDATION_ERROR", `Unsupported card type: ${card.type}`)
     }
 
-    // Create transaction record
+    // 💾 Actualizar tarjeta en DynamoDB
+    await docClient.send(
+      new UpdateCommand({
+        TableName: cardTableName,
+        Key: {
+          uuid: card.uuid,
+          createdAt: card.createdAt,
+        },
+        UpdateExpression: updateExpression,
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+      }),
+    )
+
+    // 🧾 Crear registro de transacción enriquecido
     const transactionId = uuidv4()
-    const now = new Date().toISOString()
 
     const transaction: Transaction = {
       uuid: transactionId,
-      cardId: body.cardId,
+      cardId: card.uuid,
       amount: body.amount,
       merchant: body.merchant,
       type: "PURCHASE",
       createdAt: now,
+
+      // 🔹 Nuevos campos
+      userId: card.user_id,
+      cardType: card.type,
+      cardLast4: card.last4,
+      source: body.source ?? "CARD_PURCHASE",
+      paymentTraceId: body.paymentTraceId ?? null,
     }
 
     await docClient.send(
@@ -137,17 +152,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }),
     )
 
-    // Send notification
+    // 📤 Notificación de compra
     const notificationQueueUrl = process.env.NOTIFICATION_EMAIL_QUEUE!
     await sendSQSMessage(notificationQueueUrl, {
       userId: card.user_id,
-      email: "",
+      email: "", // notification-service resuelve el correo
       type: "TRANSACTION.PURCHASE",
       data: {
-        transactionId: transactionId,
-        cardId: body.cardId,
-        merchant: body.merchant,
+        transactionId,
+        cardId: card.uuid,
         amount: body.amount,
+        merchant: body.merchant,
         cardType: card.type,
       },
     })
@@ -155,13 +170,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     return successResponse(
       {
         message: "Purchase successful",
-        transaction: {
-          uuid: transactionId,
-          amount: body.amount,
-          merchant: body.merchant,
-          type: "PURCHASE",
-          createdAt: now,
-        },
+        transaction,
       },
       201,
     )

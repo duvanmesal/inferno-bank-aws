@@ -121,7 +121,7 @@ module "apigw" {
   security_pin_set_invoke_arn        = module.lambda.security_pin_set_invoke_arn
   security_pin_verify_cvv_invoke_arn = module.lambda.security_pin_verify_cvv_invoke_arn
   card_get_by_number_invoke_arn = module.lambda.card_get_by_number_invoke_arn
-
+  user_transactions_get_invoke_arn   = module.lambda.user_transactions_get_invoke_arn
 
   # Lambda function names
   register_user_function_name           = module.lambda.register_user_function_name
@@ -139,6 +139,8 @@ module "apigw" {
   security_pin_set_function_name        = module.lambda.security_pin_set_function_name
   security_pin_verify_cvv_function_name = module.lambda.security_pin_verify_cvv_function_name
   card_get_by_number_function_name = module.lambda.card_get_by_number_function_name
+  user_transactions_get_function_name   = module.lambda.user_transactions_get_function_name
+
 
   tags = local.common_tags
 }

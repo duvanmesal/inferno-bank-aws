@@ -134,3 +134,13 @@ variable "card_get_by_number_function_name" {
   type        = string
   description = "Function name for card-get-by-number lambda"
 }
+
+variable "user_transactions_get_invoke_arn" {
+  type        = string
+  description = "Invoke ARN for user-transactions-get lambda"
+}
+
+variable "user_transactions_get_function_name" {
+  type        = string
+  description = "Function name for user-transactions-get lambda"
+}

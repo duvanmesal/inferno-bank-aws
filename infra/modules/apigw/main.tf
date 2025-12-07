@@ -365,3 +365,26 @@ resource "aws_lambda_permission" "card_get_by_number" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
+
+# === User Transactions by User ===
+resource "aws_apigatewayv2_integration" "user_transactions_get" {
+  api_id                 = aws_apigatewayv2_api.http_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = var.user_transactions_get_invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "user_transactions_get" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  # Usamos {user_id} para ser consistentes con /users/{user_id}/cards
+  route_key = "GET /users/{user_id}/transactions"
+  target    = "integrations/${aws_apigatewayv2_integration.user_transactions_get.id}"
+}
+
+resource "aws_lambda_permission" "user_transactions_get" {
+  statement_id  = "AllowAPIGatewayInvokeUserTransactions"
+  action        = "lambda:InvokeFunction"
+  function_name = var.user_transactions_get_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}

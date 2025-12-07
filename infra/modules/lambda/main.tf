@@ -418,3 +418,23 @@ resource "aws_lambda_function" "card_get_by_number" {
 
   tags = var.tags
 }
+
+resource "aws_lambda_function" "user_transactions_get" {
+  function_name    = "user-transactions-get-lambda-${var.env}"
+  role             = var.card_service_role_arn
+  runtime          = "nodejs20.x"
+  handler          = "index.userTransactionsGetHandler"
+  filename         = "${path.module}/../../../services/card-service/dist/card-service.zip"
+  source_code_hash = fileexists("${path.module}/../../../services/card-service/dist/card-service.zip") ? filebase64sha256("${path.module}/../../../services/card-service/dist/card-service.zip") : null
+  timeout          = 30
+  memory_size      = 512
+
+  environment {
+    variables = {
+      TRANSACTION_TABLE_NAME = var.transaction_table_name
+    }
+  }
+
+  tags = var.tags
+}
+
