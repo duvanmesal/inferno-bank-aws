@@ -98,7 +98,7 @@ async function processRecord(record: SQSRecord): Promise<void> {
   const notificationQueueUrl = process.env.NOTIFICATION_EMAIL_QUEUE!
   await sendSQSMessage(notificationQueueUrl, {
     userId: userId,
-    email: "", // Will be fetched by notification service
+    email: "",
     type: "CARD.CREATE",
     data: {
       cardId: cardUuid,
