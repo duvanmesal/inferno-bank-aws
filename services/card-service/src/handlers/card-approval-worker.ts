@@ -4,6 +4,7 @@ import { docClient, PutCommand } from "../utils/dynamodb"
 import { sendSQSMessage } from "../utils/sqs"
 import type { Card } from "../types/card"
 import type { CardRequestMessage } from "../types/queue"
+import { generateCardData } from "../utils/card-number"
 
 const generateCreditScore = (): number => {
   return Math.floor(Math.random() * 101) // 0-100
@@ -53,9 +54,19 @@ async function processRecord(record: SQSRecord): Promise<void> {
       usedBalance: 0,
       createdAt: now,
       updatedAt: now,
-    }
+      // Los datos de tarjeta (cardNumber, expiration, cvv, brand, last4)
+      // se generan luego en el flujo /card/activate
+    } as Card
   } else {
     // DEBIT card
+    // Ahora la creamos COMPLETA:
+    // - con número de tarjeta
+    // - con expiración
+    // - con CVV
+    // - con brand y last4
+    // Y la dejamos ACTIVATED desde el inicio.
+    const { cardNumber, expiration, cvv, brand, last4 } = generateCardData()
+
     card = {
       uuid: cardUuid,
       user_id: userId,
@@ -65,7 +76,12 @@ async function processRecord(record: SQSRecord): Promise<void> {
       usedBalance: 0,
       createdAt: now,
       updatedAt: now,
-    }
+      cardNumber,
+      expiration,
+      brand,
+      last4,
+      cvv,
+    } as Card
   }
 
   // Save card to DynamoDB
