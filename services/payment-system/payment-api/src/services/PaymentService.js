@@ -1,55 +1,109 @@
-import { uuid } from "../utils/uuid.js";
-import { CreatePaymentDto } from "../dto/CreatePaymentDto.js";
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  GetItemCommand,
+  UpdateItemCommand,
+} from "@aws-sdk/client-dynamodb";
 
-export class PaymentService {
-  constructor(paymentRepo, coreBankService, queueService) {
-    this.paymentRepo = paymentRepo;
-    this.coreBankService = coreBankService;
-    this.queueService = queueService;
+const dynamo = new DynamoDBClient({});
+
+// Leemos directo de process.env (sin usar env.js)
+const TABLE_NAME = process.env.PAYMENT_TABLE_NAME;
+
+if (!TABLE_NAME) {
+  console.warn(
+    "[PaymentRepository] PAYMENT_TABLE_NAME env var is not set. Repository will not work correctly.",
+  );
+}
+
+export class PaymentRepository {
+  constructor() {
+    this.tableName = TABLE_NAME;
   }
 
-  async createPaymentFromHttpBody(body) {
-    // 1. Validar + mapear body a DTO
-    const dto = CreatePaymentDto.fromHttpRequestBody(body);
+  async createInitialPayment({ traceId, userId, cardId, service }) {
+    if (!this.tableName) return;
 
-    // 2. Obtener info de tarjeta (incluye userId) desde el Core Bank
-    const cardInfo = await this.coreBankService.getCard(dto.cardId);
+    const now = new Date().toISOString();
 
-    // 3. Generar traceId
-    const traceId = uuid();
+    const item = {
+      traceId: { S: traceId },
+      userId: { S: userId },
+      cardId: { S: cardId },
+      status: { S: "INITIAL" },
+      service: { S: JSON.stringify(service) },
+      error: { S: "" },
+      createdAt: { S: now },
+      updatedAt: { S: now },
+    };
 
-    // 4. Crear registro inicial en PAYMENT_TABLE con status INITIAL
-    await this.paymentRepo.createInitialPayment({
-      traceId,
-      userId: cardInfo.userId,
-      cardId: dto.cardId,
-      service: dto.service,
-    });
+    await dynamo.send(
+      new PutItemCommand({
+        TableName: this.tableName,
+        Item: item,
+      }),
+    );
+  }
 
-    // 5. Enviar a cola start-payment
-    try {
-      await this.queueService.enqueueStart(traceId);
-    } catch (err) {
-      // 🔥 Si falla el envío a SQS, NO dejamos el pago en INITIAL:
-      // lo marcamos FAILED con un error claro y re-lanzamos para que el handler devuelva 500
-      await this.paymentRepo.markAsFailed(
-        traceId,
-        "Failed to enqueue start-payment message",
-        [
-          `Error en enqueueStart: ${
-            err && err.message ? err.message : String(err)
-          }`,
-        ],
-      );
-      throw err;
+  async getPayment(traceId) {
+    if (!this.tableName) return null;
+
+    const res = await dynamo.send(
+      new GetItemCommand({
+        TableName: this.tableName,
+        Key: { traceId: { S: traceId } },
+      }),
+    );
+
+    if (!res.Item) return null;
+
+    return {
+      traceId: res.Item.traceId.S,
+      userId: res.Item.userId?.S ?? null,
+      cardId: res.Item.cardId?.S ?? null,
+      status: res.Item.status?.S ?? null,
+      service: res.Item.service ? JSON.parse(res.Item.service.S) : null,
+      error: res.Item.error?.S || null,
+      createdAt: res.Item.createdAt?.S ?? null,
+      updatedAt: res.Item.updatedAt?.S ?? null,
+    };
+  }
+
+  buildError(message, logs) {
+    const safeLogs = Array.isArray(logs) ? logs : [];
+    if (!message && safeLogs.length === 0) {
+      return "";
     }
 
-    // 6. Respuesta al cliente
-    return { traceId };
+    return JSON.stringify({
+      message: message || null,
+      logs: safeLogs,
+    });
   }
 
-  async getPaymentById(traceId) {
-    const payment = await this.paymentRepo.getPayment(traceId);
-    return payment;
+  async markAsFailed(traceId, message, logs) {
+    if (!this.tableName) return;
+
+    const now = new Date().toISOString();
+    const errorJson = this.buildError(message, logs);
+
+    await dynamo.send(
+      new UpdateItemCommand({
+        TableName: this.tableName,
+        Key: { traceId: { S: traceId } },
+        UpdateExpression:
+          "SET #status = :status, #updatedAt = :updatedAt, #error = :error",
+        ExpressionAttributeNames: {
+          "#status": "status",
+          "#updatedAt": "updatedAt",
+          "#error": "error",
+        },
+        ExpressionAttributeValues: {
+          ":status": { S: "FAILED" },
+          ":updatedAt": { S: now },
+          ":error": { S: errorJson },
+        },
+      }),
+    );
   }
 }

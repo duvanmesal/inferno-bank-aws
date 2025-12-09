@@ -1,184 +1,52 @@
-import {
-  DynamoDBClient,
-  GetItemCommand,
-  UpdateItemCommand,
-} from "@aws-sdk/client-dynamodb";
+import { sleep } from "../utils/sleep.js";
 
-const dynamo = new DynamoDBClient({});
-
-const TABLE_NAME = process.env.PAYMENT_TABLE_NAME;
-
-if (!TABLE_NAME) {
-  console.warn(
-    "[PaymentRepository] PAYMENT_TABLE_NAME env var is not set. Repository will not work correctly.",
-  );
-}
-
-export class PaymentRepository {
-  constructor() {
-    this.tableName = TABLE_NAME;
+export class StartPaymentService {
+  constructor(paymentRepo, queueService) {
+    this.paymentRepo = paymentRepo;
+    this.queueService = queueService;
   }
 
-  async getPayment(traceId) {
-    if (!this.tableName) return null;
+  async process(messageDto) {
+    const { traceId } = messageDto;
+    const logs = [];
+    const addLog = (msg, extra) => {
+      const line =
+        extra !== undefined ? `${msg} | ${JSON.stringify(extra)}` : msg;
+      logs.push(line);
+      console.log("[StartPaymentService]", line);
+    };
 
-    const res = await dynamo.send(
-      new GetItemCommand({
-        TableName: this.tableName,
-        Key: { traceId: { S: traceId } },
-      }),
-    );
+    addLog("Processing start-payment message", { traceId });
 
-    if (!res.Item) {
-      console.log(
-        `[PaymentRepository] Payment not found traceId=${traceId}`,
+    const payment = await this.paymentRepo.getPayment(traceId);
+
+    if (!payment) {
+      addLog("Payment not found in StartPaymentService", { traceId });
+      await this.paymentRepo.markAsFailed(
+        traceId,
+        "Payment not found in start-payment",
+        logs,
       );
-      return null;
+      return { traceId, next: "STOPPED_NOT_FOUND" };
     }
 
-    return {
-      traceId,
-      userId: res.Item.userId?.S ?? null,
-      cardId: res.Item.cardId?.S ?? null,
-      status: res.Item.status?.S ?? null,
-      service: res.Item.service ? JSON.parse(res.Item.service.S) : null,
-      error: res.Item.error
-        ? JSON.parse(res.Item.error.S)
-        : null,
-      createdAt: res.Item.createdAt?.S ?? null,
-      updatedAt: res.Item.updatedAt?.S ?? null,
-    };
-  }
-
-  async getByTraceId(traceId) {
-    // Alias para TransactionService
-    return this.getPayment(traceId);
-  }
-
-  buildError(message, logs) {
-    const safeLogs = Array.isArray(logs) ? logs : [];
-    if (!message && safeLogs.length === 0) {
-      return null;
-    }
-
-    return JSON.stringify({
-      message: message || null,
-      logs: safeLogs,
+    addLog("Payment loaded", {
+      status: payment.status,
+      userId: payment.userId,
+      cardId: payment.cardId,
     });
-  }
 
-  async updateStatus(traceId, status, logs) {
-    if (!this.tableName) return;
+    // Cambiar estado a IN_PROGRESS
+    await this.paymentRepo.updateStatus(traceId, "IN_PROGRESS", logs);
+    addLog("Payment marked as IN_PROGRESS");
 
-    const now = new Date().toISOString();
-    const errorJson = this.buildError(null, logs);
+    // Simular latencia bancaria
+    await sleep(5000);
 
-    const exprNames = {
-      "#status": "status",
-      "#updatedAt": "updatedAt",
-    };
+    // Enviar a check-balance
+    await this.queueService.enqueueCheckBalance(traceId);
+    addLog("Enqueued to check-balance");
 
-    const exprValues = {
-      ":status": { S: status },
-      ":updatedAt": { S: now },
-    };
-
-    let updateExpression =
-      "SET #status = :status, #updatedAt = :updatedAt";
-
-    if (errorJson !== null) {
-      exprNames["#error"] = "error";
-      exprValues[":error"] = { S: errorJson };
-      updateExpression += ", #error = :error";
-    }
-
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: this.tableName,
-        Key: { traceId: { S: traceId } },
-        UpdateExpression: updateExpression,
-        ExpressionAttributeNames: exprNames,
-        ExpressionAttributeValues: exprValues,
-      }),
-    );
-  }
-
-  async updateInProgress(traceId, logs) {
-    // Usado por CheckBalanceService
-    return this.markAsInProgress(traceId, logs);
-  }
-
-  async markAsInProgress(traceId, logs) {
-    // Usado por TransactionService
-    return this.updateStatus(traceId, "IN_PROGRESS", logs);
-  }
-
-  async markAsFinished(traceId, logs) {
-    if (!this.tableName) return;
-
-    const now = new Date().toISOString();
-    const errorJson = this.buildError(null, logs);
-
-    const exprNames = {
-      "#status": "status",
-      "#updatedAt": "updatedAt",
-    };
-
-    const exprValues = {
-      ":status": { S: "FINISH" },
-      ":updatedAt": { S: now },
-    };
-
-    let updateExpression =
-      "SET #status = :status, #updatedAt = :updatedAt";
-
-    if (errorJson !== null) {
-      exprNames["#error"] = "error";
-      exprValues[":error"] = { S: errorJson };
-      updateExpression += ", #error = :error";
-    }
-
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: this.tableName,
-        Key: { traceId: { S: traceId } },
-        UpdateExpression: updateExpression,
-        ExpressionAttributeNames: exprNames,
-        ExpressionAttributeValues: exprValues,
-      }),
-    );
-  }
-
-  async markAsFailed(traceId, message, logs) {
-    if (!this.tableName) return;
-
-    const now = new Date().toISOString();
-    const errorJson = this.buildError(message, logs);
-
-    await dynamo.send(
-      new UpdateItemCommand({
-        TableName: this.tableName,
-        Key: { traceId: { S: traceId } },
-        UpdateExpression:
-          "SET #status = :status, #updatedAt = :updatedAt, #error = :error",
-        ExpressionAttributeNames: {
-          "#status": "status",
-          "#updatedAt": "updatedAt",
-          "#error": "error",
-        },
-        ExpressionAttributeValues: {
-          ":status": { S: "FAILED" },
-          ":updatedAt": { S: now },
-          ":error": {
-            S:
-              errorJson ??
-              JSON.stringify({
-                message,
-                logs: Array.isArray(logs) ? logs : [],
-              }),
-          },
-        },
-      }),
-    );
+    return { traceId, next: "check-balance" };
   }
 }

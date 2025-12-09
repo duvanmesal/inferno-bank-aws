@@ -1,9 +1,17 @@
-import { env } from "../config/env.js";
 import { HttpError } from "../errors/HttpError.js";
 
 export class CoreBankService {
   async getCard(cardId) {
-    const url = `${env.CORE_BANK_BASE_URL}/cards/${cardId}`;
+    const baseUrl = process.env.CORE_BANK_BASE_URL;
+
+    if (!baseUrl) {
+      throw new HttpError(
+        500,
+        "CORE_BANK_BASE_URL is not configured in environment",
+      );
+    }
+
+    const url = `${baseUrl}/cards/${cardId}`;
 
     const res = await fetch(url);
 

@@ -1,11 +1,11 @@
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
-import { env } from "../config/env.js";
 
 const sqs = new SQSClient({});
 
 export class QueueService {
   async enqueueStart(traceId) {
-    const queueUrl = env.START_PAYMENT_QUEUE_URL;
+    // Leemos directo de process.env
+    const queueUrl = process.env.START_PAYMENT_QUEUE_URL;
 
     console.log("[payment-api][QueueService] enqueueStart", {
       traceId,

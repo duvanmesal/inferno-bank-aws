@@ -21,7 +21,8 @@ export const handler = async (event) => {
     // POST /payment
     if (method === "POST" && resource === "/payment") {
       const result = await paymentService.createPaymentFromHttpBody(event.body);
-      return response(201, result); // { traceId }
+      // result = { traceId }
+      return response(201, result);
     }
 
     // GET /payment/{traceId}
@@ -47,9 +48,18 @@ export const handler = async (event) => {
     console.error("❌ ERROR in payment-api:", err);
 
     if (err instanceof HttpError) {
+      // Errores que nosotros mismos lanzamos (CoreBank, validaciones, etc.)
       return response(err.status, { message: err.message });
     }
 
-    return response(500, { message: "Internal server error" });
+    // 🔥 Aquí es donde antes ocultábamos TODO.
+    // Ahora devolvemos también el mensaje de error real para poder depurar.
+    const errorMessage =
+      err && err.message ? err.message : String(err);
+
+    return response(500, {
+      message: "Internal server error",
+      error: errorMessage,
+    });
   }
 };
